@@ -1,45 +1,98 @@
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Login from './Components/Login';
+import Otp from './Components/Otp';
+import ReduxProvider from './Redux/Provider';
+import { TokenProvider, useToken } from './Redux/TokenContext';
+import Home from './Components/Home';
+import AddCustomer from './Components/AddCustomer';
+import ViewCustomerData from './Components/ViewCustomerData';
+import Settings from './Components/Settings';
+import FirstLoginName from './Components/FirstLoginName';
+import AppLock from './Components/AppLock';
+
+const Stack = createNativeStackNavigator();
+
+
+function RootNavigator() {
+
+
+  return (
+    <Stack.Navigator
+      initialRouteName={"Home"}
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: false,
+        animationEnabled: true,
+      }}
+    >
+     
+          <Stack.Screen 
+            name="Login" 
+            component={Login} 
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="Otp" 
+            component={Otp} 
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="FirstLoginName" 
+            component={FirstLoginName} 
+            options={{ gestureEnabled: false }}
+          />
+        
+          <Stack.Screen 
+            name="AppLock" 
+            component={AppLock}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="Home" 
+            component={Home}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="AddCustomer" 
+            component={AddCustomer}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="ViewCustomerData" 
+            component={ViewCustomerData}
+            options={{ gestureEnabled: true }}
+          />
+          <Stack.Screen 
+            name="Settings" 
+            component={Settings}
+            options={{ gestureEnabled: true }}
+          />
+       
+    </Stack.Navigator>
+  );
+}
+
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
+ * ── Main App Component ─────────────────────────────────────────────────
+ * Wraps everything with Redux and Token providers
  */
-
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
-  );
-}
-
 function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
   return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
+    <NavigationContainer>
+      <RootNavigator />
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
-export default App;
+export default function App() {
+  return (
+    <ReduxProvider>
+      <TokenProvider>
+        <AppContent />
+      </TokenProvider>
+    </ReduxProvider>
+  );
+}
