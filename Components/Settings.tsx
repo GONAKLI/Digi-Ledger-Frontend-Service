@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -13,6 +13,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { launchImageLibrary } from "react-native-image-picker";
@@ -28,8 +29,6 @@ import {
   logout,
 } from "../Redux/Slice";
 
-
-// ── Sub-modal: Edit Name ──────────────────────────────────────────────────────
 function EditNameModal({ visible, currentName, onSave, onClose, loading }) {
   const [name, setName] = useState(currentName);
   useEffect(() => { setName(currentName); }, [currentName]);
@@ -37,7 +36,7 @@ function EditNameModal({ visible, currentName, onSave, onClose, loading }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={ModalStyles.overlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
           <View style={ModalStyles.card}>
             <Text style={ModalStyles.title}>Change Name</Text>
             <TextInput
@@ -45,7 +44,7 @@ function EditNameModal({ visible, currentName, onSave, onClose, loading }) {
               value={name}
               onChangeText={setName}
               placeholder="Your name"
-              placeholderTextColor="#aab"
+              placeholderTextColor="#94A3B8"
               maxLength={50}
               autoFocus
             />
@@ -58,7 +57,7 @@ function EditNameModal({ visible, currentName, onSave, onClose, loading }) {
                 onPress={() => onSave(name.trim())}
                 disabled={loading}
               >
-                <Text style={ModalStyles.saveText}>{loading ? "Saving…" : "Save"}</Text>
+                {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={ModalStyles.saveText}>Save</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -68,25 +67,22 @@ function EditNameModal({ visible, currentName, onSave, onClose, loading }) {
   );
 }
 
-// ── Sub-modal: Feedback ───────────────────────────────────────────────────────
 function FeedbackModal({ visible, onSend, onClose, loading }) {
-  const [feedbackText, setFeedbackText] = useState("");  // FIXED: renamed from 'text' to avoid shadowing
+  const [feedbackText, setFeedbackText] = useState("");
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={ModalStyles.overlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
           <View style={ModalStyles.card}>
             <Text style={ModalStyles.title}>Send Feedback</Text>
-            <Text style={ModalStyles.subtitle}>
-              We'd love to hear what you think!
-            </Text>
+            <Text style={ModalStyles.subtitle}>We'd love to hear what you think!</Text>
             <TextInput
-              style={[ModalStyles.input, { minHeight: 100, textAlignVertical: "top" }]}
+              style={[ModalStyles.input, { minHeight: 110, textAlignVertical: "top" }]}
               value={feedbackText}
-              onChangeText={setFeedbackText}  // FIXED: was shadowing 'text' variable
+              onChangeText={setFeedbackText}
               placeholder="Tell us what you think…"
-              placeholderTextColor="#aab"
+              placeholderTextColor="#94A3B8"
               maxLength={500}
               multiline
               autoFocus
@@ -101,7 +97,7 @@ function FeedbackModal({ visible, onSend, onClose, loading }) {
                 onPress={() => onSend(feedbackText.trim())}
                 disabled={loading || feedbackText.trim().length < 5}
               >
-                <Text style={ModalStyles.saveText}>{loading ? "Sending…" : "Send"}</Text>
+                {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={ModalStyles.saveText}>Send</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -111,11 +107,10 @@ function FeedbackModal({ visible, onSend, onClose, loading }) {
   );
 }
 
-// ── Sub-modal: Set / Change PIN ───────────────────────────────────────────────
 function PinModal({ visible, hasPin, onSave, onRemove, onClose, loading }) {
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
-  const [step, setStep] = useState("enter");  // FIXED: removed TypeScript type annotation
+  const [step, setStep] = useState("enter");
   const [error, setError] = useState("");
 
   function reset() {
@@ -144,7 +139,7 @@ function PinModal({ visible, hasPin, onSave, onRemove, onClose, loading }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
       <View style={ModalStyles.overlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
           <View style={ModalStyles.card}>
             <Text style={ModalStyles.title}>
               {step === "enter" ? (hasPin ? "Change PIN" : "Set PIN") : "Confirm PIN"}
@@ -161,17 +156,14 @@ function PinModal({ visible, hasPin, onSave, onRemove, onClose, loading }) {
               maxLength={4}
               secureTextEntry
               placeholder="• • • •"
-              placeholderTextColor="#aab"
+              placeholderTextColor="#94A3B8"
               autoFocus
             />
 
             {error ? <Text style={ModalStyles.errorText}>{error}</Text> : null}
 
             <View style={ModalStyles.row}>
-              <TouchableOpacity
-                style={ModalStyles.cancelBtn}
-                onPress={() => { reset(); onClose(); }}
-              >
+              <TouchableOpacity style={ModalStyles.cancelBtn} onPress={() => { reset(); onClose(); }}>
                 <Text style={ModalStyles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -179,17 +171,12 @@ function PinModal({ visible, hasPin, onSave, onRemove, onClose, loading }) {
                 onPress={step === "enter" ? handleNext : handleConfirm}
                 disabled={loading}
               >
-                <Text style={ModalStyles.saveText}>
-                  {loading ? "Saving…" : step === "enter" ? "Next →" : "Set PIN"}
-                </Text>
+                <Text style={ModalStyles.saveText}>{step === "enter" ? "Next" : "Set PIN"}</Text>
               </TouchableOpacity>
             </View>
 
             {hasPin && step === "enter" && (
-              <TouchableOpacity
-                style={ModalStyles.removeBtn}
-                onPress={() => { reset(); onRemove(); }}
-              >
+              <TouchableOpacity style={ModalStyles.removeBtn} onPress={() => { reset(); onRemove(); }}>
                 <Text style={ModalStyles.removeText}>Remove PIN lock</Text>
               </TouchableOpacity>
             )}
@@ -200,17 +187,12 @@ function PinModal({ visible, hasPin, onSave, onRemove, onClose, loading }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Settings Screen
-// ─────────────────────────────────────────────────────────────────────────────
 export default function Settings({ navigation }) {
-  
   const dispatch = useDispatch();
   const { token, userName, profilePic, hasPin, settingsLoading } = useSelector(
     (s) => s.authOperations
   );
 
-  // FIXED: always read token fresh from AsyncStorage to avoid null/stale Redux state
   const getToken = async () => {
     const stored = await AsyncStorage.getItem("token");
     const t = token || stored;
@@ -229,12 +211,10 @@ export default function Settings({ navigation }) {
     })();
   }, []);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
-
   async function handleSaveName(name) {
     if (!name || name.length < 2) return;
     try {
-      const authToken = await getToken();  // FIXED: fresh token
+      const authToken = await getToken();
       const result = await dispatch(updateNameThunk({ authToken, name }));
       if (updateNameThunk.fulfilled.match(result)) {
         setShowNameModal(false);
@@ -261,7 +241,7 @@ export default function Settings({ navigation }) {
           [
             { text: "Use local path (dev only)", onPress: async () => {
               try {
-                const authToken = await getToken();  // FIXED: fresh token
+                const authToken = await getToken();
                 const result = await dispatch(
                   updateProfilePicThunk({ authToken, profilePicPath: asset.uri })
                 );
@@ -281,7 +261,7 @@ export default function Settings({ navigation }) {
 
   async function handleSendFeedback(text) {
     try {
-      const authToken = await getToken();  // FIXED: fresh token
+      const authToken = await getToken();
       const result = await dispatch(submitFeedbackThunk({ authToken, feedback: text }));
       if (submitFeedbackThunk.fulfilled.match(result)) {
         setShowFeedbackModal(false);
@@ -296,7 +276,7 @@ export default function Settings({ navigation }) {
 
   async function handleSetPin(pin) {
     try {
-      const authToken = await getToken();  // FIXED: fresh token
+      const authToken = await getToken();
       const result = await dispatch(setPinThunk({ authToken, pin }));
       if (setPinThunk.fulfilled.match(result)) {
         setShowPinModal(false);
@@ -317,7 +297,7 @@ export default function Settings({ navigation }) {
         style: "destructive",
         onPress: async () => {
           try {
-            const authToken = await getToken();  // FIXED: fresh token
+            const authToken = await getToken();
             const result = await dispatch(setPinThunk({ authToken, pin: "" }));
             if (setPinThunk.fulfilled.match(result)) {
               Alert.alert("✅", "App lock disabled");
@@ -338,11 +318,9 @@ export default function Settings({ navigation }) {
         style: "destructive",
         onPress: async () => {
           try {
-            const authToken = await getToken();  // FIXED: fresh token
+            const authToken = await getToken();
             await dispatch(logoutThunk(authToken));
-          } catch (_) {
-            // token already gone — proceed with local logout anyway
-          }
+          } catch (_) {}
           await AsyncStorage.multiRemove(["token", "phone"]);
           dispatch(logout());
           navigation.replace("Login");
@@ -362,7 +340,7 @@ export default function Settings({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              const authToken = await getToken();  // FIXED: fresh token
+              const authToken = await getToken();
               const phone = await AsyncStorage.getItem("phone");
               const result = await dispatch(deleteAccountThunk({ authToken, phone }));
               if (deleteAccountThunk.fulfilled.match(result)) {
@@ -380,15 +358,10 @@ export default function Settings({ navigation }) {
     );
   }
 
-  // ── Render section rows ───────────────────────────────────────────────────
   const SettingRow = ({ icon, label, value = "", onPress, destructive = false, rightElement = null }) => (
-    <TouchableOpacity
-      style={Styles.row}
-      onPress={onPress}
-      activeOpacity={0.75}
-    >
+    <TouchableOpacity style={Styles.row} onPress={onPress} activeOpacity={0.6}>
       <View style={[Styles.rowIcon, destructive && Styles.rowIconDestructive]}>
-        <Text style={Styles.rowIconText}>{icon}</Text>
+        <Text style={[Styles.rowIconText, destructive && { color: "#EF4444" }]}>{icon}</Text>
       </View>
       <View style={Styles.rowContent}>
         <Text style={[Styles.rowLabel, destructive && Styles.rowLabelDestructive]}>{label}</Text>
@@ -400,7 +373,7 @@ export default function Settings({ navigation }) {
 
   return (
     <SafeAreaView style={Styles.container}>
-      {/* Header */}
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={Styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={Styles.backBtn}>
           <Text style={Styles.backBtnText}>← Back</Text>
@@ -409,21 +382,14 @@ export default function Settings({ navigation }) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={Styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Profile card */}
+      <ScrollView contentContainerStyle={Styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={Styles.profileCard}>
-          <TouchableOpacity onPress={handlePickPhoto} style={Styles.avatarContainer} activeOpacity={0.8}>
+          <TouchableOpacity onPress={handlePickPhoto} style={Styles.avatarContainer} activeOpacity={0.85}>
             {profilePic ? (
               <Image source={{ uri: profilePic }} style={Styles.avatarImage} />
             ) : (
               <View style={Styles.avatarPlaceholder}>
-                <Text style={Styles.avatarPlaceholderText}>
-                  {userName ? userName[0].toUpperCase() : "?"}
-                </Text>
+                <Text style={Styles.avatarPlaceholderText}>{userName ? userName[0].toUpperCase() : "?"}</Text>
               </View>
             )}
             <View style={Styles.cameraOverlay}>
@@ -432,306 +398,130 @@ export default function Settings({ navigation }) {
           </TouchableOpacity>
           <View style={Styles.profileInfo}>
             <Text style={Styles.profileName}>{userName || "Set your name"}</Text>
-            <Text style={Styles.profileTap}>Tap photo to change</Text>
+            <Text style={Styles.profileTap}>Tap profile picture to update</Text>
           </View>
         </View>
 
-        {/* Section: Account */}
-        <Text style={Styles.sectionLabel}>ACCOUNT</Text>
+        <Text style={Styles.sectionLabel}>ACCOUNT PROFILE</Text>
         <View style={Styles.section}>
-          <SettingRow
-            icon="✏️"
-            label="Change Name"
-            value={userName || "Not set"}
-            onPress={() => setShowNameModal(true)}
-          />
+          <SettingRow icon="✏️" label="Change Name" value={userName || "Not set"} onPress={() => setShowNameModal(true)} />
           <View style={Styles.separator} />
-          <SettingRow
-            icon="🖼️"
-            label="Change Profile Photo"
-            onPress={handlePickPhoto}
-          />
+          <SettingRow icon="🖼️" label="Change Profile Photo" onPress={handlePickPhoto} />
         </View>
 
-        {/* Section: Security */}
-        <Text style={Styles.sectionLabel}>SECURITY</Text>
+        <Text style={Styles.sectionLabel}>SECURITY PRIVACY</Text>
         <View style={Styles.section}>
           <SettingRow
             icon="🔒"
             label="App Lock PIN"
-            value={hasPin ? "Enabled" : "Disabled"}
+            value={hasPin ? "Secured" : "Unprotected"}
             onPress={() => setShowPinModal(true)}
             rightElement={
               <View style={[Styles.pinBadge, hasPin ? Styles.pinBadgeOn : Styles.pinBadgeOff]}>
-                <Text style={[Styles.pinBadgeText, hasPin ? Styles.pinBadgeTextOn : Styles.pinBadgeTextOff]}>
-                  {hasPin ? "ON" : "OFF"}
-                </Text>
+                <Text style={[Styles.pinBadgeText, hasPin ? Styles.pinBadgeTextOn : Styles.pinBadgeTextOff]}>{hasPin ? "ON" : "OFF"}</Text>
               </View>
             }
           />
         </View>
 
-        {/* Section: Support */}
-        <Text style={Styles.sectionLabel}>SUPPORT</Text>
+        <Text style={Styles.sectionLabel}>SUPPORT & HELP</Text>
         <View style={Styles.section}>
-          <SettingRow
-            icon="💬"
-            label="Send Feedback"
-            onPress={() => setShowFeedbackModal(true)}
-          />
+          <SettingRow icon="💬" label="Send Feedback" onPress={() => setShowFeedbackModal(true)} />
         </View>
 
-        {/* Section: Danger zone */}
-        <Text style={Styles.sectionLabel}>SESSION</Text>
+        <Text style={Styles.sectionLabel}>APP ACCOUNT SESSION</Text>
         <View style={Styles.section}>
-          <SettingRow
-            icon="🚪"
-            label="Logout"
-            onPress={handleLogout}
-          />
+          <SettingRow icon="🚪" label="Logout Account" onPress={handleLogout} />
         </View>
 
         <Text style={Styles.sectionLabel}>DANGER ZONE</Text>
         <View style={[Styles.section, Styles.dangerSection]}>
-          <SettingRow
-            icon="🗑️"
-            label="Delete Account"
-            value="Permanently removes all your data"
-            onPress={handleDeleteAccount}
-            destructive
-          />
+          <SettingRow icon="🗑️" label="Delete Ledger Account" value="Permanently wipe all financial transactions" onPress={handleDeleteAccount} destructive />
         </View>
 
-        <Text style={Styles.appVersion}>Digi Ledger v1.0.0</Text>
+        <Text style={Styles.appVersion}>Digi Ledger • Version 1.0.0</Text>
       </ScrollView>
 
-      {/* Modals */}
-      <EditNameModal
-        visible={showNameModal}
-        currentName={userName}
-        onSave={handleSaveName}
-        onClose={() => setShowNameModal(false)}
-        loading={settingsLoading}
-      />
-      <FeedbackModal
-        visible={showFeedbackModal}
-        onSend={handleSendFeedback}
-        onClose={() => setShowFeedbackModal(false)}
-        loading={settingsLoading}
-      />
-      <PinModal
-        visible={showPinModal}
-        hasPin={hasPin}
-        onSave={handleSetPin}
-        onRemove={handleRemovePin}
-        onClose={() => setShowPinModal(false)}
-        loading={settingsLoading}
-      />
+      <EditNameModal visible={showNameModal} currentName={userName} onSave={handleSaveName} onClose={() => setShowNameModal(false)} loading={settingsLoading} />
+      <FeedbackModal visible={showFeedbackModal} onSend={handleSendFeedback} onClose={() => setShowFeedbackModal(false)} loading={settingsLoading} />
+      <PinModal visible={showPinModal} hasPin={hasPin} onSave={handleSetPin} onRemove={handleRemovePin} onClose={() => setShowPinModal(false)} loading={settingsLoading} />
     </SafeAreaView>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────────────────────────
 const Styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f4f8" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
-    backgroundColor: "#3498db",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderColor: "#E2E8F0",
   },
   backBtn: { paddingVertical: 4 },
-  backBtnText: { color: "#d6eaf8", fontSize: 14, fontWeight: "600" },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 20 },
-  // Profile card
+  backBtnText: { color: "#64748B", fontSize: 15, fontWeight: "600" },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 16 },
   profileCard: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 18,
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    marginBottom: 24,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   avatarContainer: { position: "relative" },
-  avatarImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    borderWidth: 3,
-    borderColor: "#e0e6ed",
-  },
-  avatarPlaceholder: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: "#3498db",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#e0e6ed",
-  },
-  avatarPlaceholderText: { fontSize: 28, fontWeight: "800", color: "#fff" },
-  cameraOverlay: {
-    position: "absolute",
-    bottom: -2,
-    right: -2,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    width: 24,
-    height: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#e0e6ed",
-  },
-  cameraIcon: { fontSize: 12 },
+  avatarImage: { width: 68, height: 68, borderRadius: 20, backgroundColor: "#F1F5F9" },
+  avatarPlaceholder: { width: 68, height: 68, borderRadius: 20, backgroundColor: "#4F46E5", justifyContent: "center", alignItems: "center" },
+  avatarPlaceholderText: { fontSize: 26, fontWeight: "700", color: "#FFFFFF" },
+  cameraOverlay: { position: "absolute", bottom: -4, right: -4, backgroundColor: "#0F172A", borderRadius: 8, width: 24, height: 24, justifyContent: "center", alignItems: "center", borderWidth: 1.5, borderColor: "#FFFFFF" },
+  cameraIcon: { fontSize: 11, color: "#FFFFFF" },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 18, fontWeight: "800", color: "#1a2533", marginBottom: 4 },
-  profileTap: { fontSize: 12, color: "#aab" },
-  // Section
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#7f8c8d",
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginLeft: 4,
-    marginTop: 8,
-  },
-  section: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: "hidden",
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  dangerSection: {
-    borderWidth: 1.5,
-    borderColor: "#fbb",
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#f0f4f8",
-    marginLeft: 54,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#f0f4f8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  rowIconDestructive: { backgroundColor: "#fdecea" },
-  rowIconText: { fontSize: 18 },
-  rowContent: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "700", color: "#1a2533" },
-  rowLabelDestructive: { color: "#c0392b" },
-  rowValue: { fontSize: 12, color: "#7f8c8d", marginTop: 2 },
-  rowChevron: { fontSize: 20, color: "#c8d0d8", fontWeight: "600" },
-  pinBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  pinBadgeOn: { backgroundColor: "#e8f8f0" },
-  pinBadgeOff: { backgroundColor: "#f0f4f8" },
-  pinBadgeText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
-  pinBadgeTextOn: { color: "#27ae60" },
-  pinBadgeTextOff: { color: "#aab" },
-  appVersion: {
-    fontSize: 12,
-    color: "#c8d0d8",
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 16,
-  },
+  profileName: { fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 2 },
+  profileTap: { fontSize: 12, color: "#64748B", fontWeight: "400" },
+  sectionLabel: { fontSize: 11, fontWeight: "700", color: "#94A3B8", letterSpacing: 1.0, marginBottom: 8, marginLeft: 6, marginTop: 8 },
+  section: { backgroundColor: "#FFFFFF", borderRadius: 20, marginBottom: 16, overflow: "hidden", borderWidth: 1, borderColor: "#E2E8F0" },
+  dangerSection: { borderColor: "#FCA5A5" },
+  separator: { height: 1, backgroundColor: "#F1F5F9", marginLeft: 60 },
+  row: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 },
+  rowIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center", marginRight: 14 },
+  rowIconDestructive: { backgroundColor: "#FEF2F2" },
+  rowIconText: { fontSize: 16, color: "#475569" },
+  rowContent: { flex: 1, paddingRight: 8 },
+  rowLabel: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
+  rowLabelDestructive: { color: "#EF4444", fontWeight: "600" },
+  rowValue: { fontSize: 12, color: "#64748B", marginTop: 3 },
+  rowChevron: { fontSize: 18, color: "#94A3B8", fontWeight: "400" },
+  pinBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  pinBadgeOn: { backgroundColor: "#DCFCE7" },
+  pinBadgeOff: { backgroundColor: "#F1F5F9" },
+  pinBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  pinBadgeTextOn: { color: "#15803D" },
+  pinBadgeTextOff: { color: "#64748B" },
+  appVersion: { fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 16, marginBottom: 16, fontWeight: "500" },
 });
 
-// ─── Modal shared styles ──────────────────────────────────────────────────────
 const ModalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-  },
-  title: { fontSize: 18, fontWeight: "800", color: "#1a2533", marginBottom: 6 },
-  subtitle: { fontSize: 13, color: "#7f8c8d", marginBottom: 14 },
-  input: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#e0e6ed",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#1a2533",
-    marginBottom: 8,
-  },
-  pinInput: {
-    textAlign: "center",
-    fontSize: 24,
-    letterSpacing: 12,
-    fontWeight: "700",
-  },
-  charCount: { fontSize: 11, color: "#aab", textAlign: "right", marginBottom: 12 },
-  errorText: { color: "#e74c3c", fontSize: 13, fontWeight: "500", marginBottom: 8 },
-  row: { flexDirection: "row", gap: 10, marginTop: 8 },
-  cancelBtn: {
-    flex: 1,
-    backgroundColor: "#f0f4f8",
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: "center",
-  },
-  cancelText: { fontSize: 15, fontWeight: "700", color: "#7f8c8d" },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: "#3498db",
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: "center",
-    elevation: 2,
-    shadowColor: "#3498db",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  saveText: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  btnDisabled: { opacity: 0.5 },
-  removeBtn: { marginTop: 12, alignItems: "center", paddingVertical: 8 },
-  removeText: { fontSize: 13, color: "#e74c3c", fontWeight: "600" },
+  overlay: { flex: 1, backgroundColor: "rgba(15, 23, 42, 0.3)", justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
+  card: { backgroundColor: "#FFFFFF", borderRadius: 24, padding: 24, width: "100%", elevation: 6 },
+  title: { fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 4 },
+  subtitle: { fontSize: 13, color: "#64748B", marginBottom: 16, lineHeight: 18 },
+  input: { backgroundColor: "#F8FAFC", borderRadius: 14, borderWidth: 1, borderColor: "#E2E8F0", paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: "#0F172A", marginBottom: 8, fontWeight: "500" },
+  pinInput: { textAlign: "center", fontSize: 22, letterSpacing: 16, fontWeight: "700", color: "#4F46E5", paddingLeft: 16 },
+  charCount: { fontSize: 11, color: "#94A3B8", textAlign: "right", marginBottom: 12 },
+  errorText: { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 8, marginLeft: 2 },
+  row: { flexDirection: "row", gap: 10, marginTop: 12 },
+  cancelBtn: { flex: 1, backgroundColor: "#F1F5F9", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+  cancelText: { fontSize: 15, fontWeight: "600", color: "#64748B" },
+  saveBtn: { flex: 1, backgroundColor: "#4F46E5", borderRadius: 14, paddingVertical: 14, alignItems: "center", justifyContent: "center" },
+  saveText: { fontSize: 15, fontWeight: "600", color: "#FFFFFF" },
+  btnDisabled: { opacity: 0.4 },
+  removeBtn: { marginTop: 16, alignItems: "center", paddingVertical: 4 },
+  removeText: { fontSize: 13, color: "#EF4444", fontWeight: "600" },
 });

@@ -24,7 +24,6 @@ export default function AppLock({ navigation }) {
 
   const MAX_ATTEMPTS = 5;
 
-  // FIXED: was assigned an async function object instead of the token string
   const getToken = async () => {
     const t = await AsyncStorage.getItem("token");
     if (!t) throw new Error("Token not found");
@@ -53,20 +52,21 @@ export default function AppLock({ navigation }) {
     }
   }
 
-  async function handleVerify(enteredPin) {  // FIXED: removed TS type annotation
+  async function handleVerify(enteredPin) {
     if (isVerifying || lockedOut || enteredPin.length !== 4) return;
-
     setIsVerifying(true);
 
     try {
-      const authToken = await getToken();  // FIXED: actually await the token
+      const authToken = await getToken();
       const result = await dispatch(verifyPinThunk({ authToken, pin: enteredPin }));
 
       if (verifyPinThunk.fulfilled.match(result)) {
         setPin("");
-       // useSelector(unlockedPin);
+        
+        // FIX: Triggers matching your exact exported Redux reducer
+        dispatch(unlockedPin());
+        
         navigation.replace("Home");
-        // no need to setIsVerifying(false) — screen is unmounted
       } else {
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
@@ -90,14 +90,13 @@ export default function AppLock({ navigation }) {
         ? "Session expired. Please log in again."
         : "Error verifying PIN. Please try again."
       );
-      // If token is missing entirely, force logout
       if (err.message === "Token not found") {
         setTimeout(handleLogoutAndRedirect, 1500);
       }
     }
   }
 
-  function handleDigit(d) {  // FIXED: removed TS type annotation
+  function handleDigit(d) {
     if (lockedOut || isVerifying || pin.length >= 4) return;
     const next = pin + d;
     setPin(next);
@@ -178,7 +177,7 @@ export default function AppLock({ navigation }) {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a2533",
+    backgroundColor: "#1A2533",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,

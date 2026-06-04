@@ -83,6 +83,7 @@ export default function AddCustomer({ navigation }) {
               <TextInput
                 style={Styles.input}
                 placeholder="Full name"
+                maxLength={20}
                 placeholderTextColor="#aaa"
                 value={name}
                 onChangeText={setName}

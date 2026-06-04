@@ -8,31 +8,87 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Image,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCustomers, fetchProfile } from "../Redux/Slice";
 import NetInfo from "@react-native-community/netinfo";
 
+const CustomerItem = React.memo(({ item, onPress }) => {
+  const net = useMemo(() => {
+    let cGiven = 0, cReceived = 0;
+    (item.transactions || []).forEach((t) => {
+      if (t.type === "given") cGiven += t.amount;
+      else cReceived += t.amount;
+    });
+    return cGiven - cReceived;
+  }, [item.transactions]);
+
+  return (
+    <TouchableOpacity
+      style={Styles.customerCard}
+      onPress={() => onPress(item)}
+      activeOpacity={0.82}
+    >
+      <View style={Styles.avatarContainer}>
+        <Text style={Styles.avatar}>{item.name ? item.name[0].toUpperCase() : "?"}</Text>
+      </View>
+      <View style={Styles.customerInfo}>
+        <Text style={Styles.customerName}>{item.name}</Text>
+        <Text style={Styles.customerPhone}>{item.customerPhone || item.phone}</Text>
+      </View>
+      <View style={[
+        Styles.balanceBox,
+        net > 0 ? Styles.balancePositive : net < 0 ? Styles.balanceNegative : null
+      ]}>
+        <Text style={[
+          Styles.balanceLabel,
+          net > 0 ? Styles.balanceLabelPos : net < 0 ? Styles.balanceLabelNeg : Styles.balanceLabelNeutral
+        ]}>
+          {net > 0 ? "OWES" : net < 0 ? "YOU OWE" : "SETTLED"}
+        </Text>
+        <Text style={[
+          Styles.balanceAmount,
+          net > 0 ? Styles.balanceLabelPos : net < 0 ? Styles.balanceLabelNeg : Styles.balanceLabelNeutral
+        ]}>
+          ₹{Math.abs(net).toLocaleString()}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function Home({ navigation }) {
   const dispatch = useDispatch();
-  const { customerData: customers, customersLoading, userName, profilePic } = useSelector(
-    (state) => state.authOperations
-  );
+  
+  // FIX: Read 'unlocked' variable precisely as matching your Redux Slice state
+  const { 
+    customerData: customers = [], 
+    customersLoading, 
+    userName, 
+    profilePic,
+    unlocked 
+  } = useSelector((state) => state.authOperations);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [isOnline, setIsOnline] = useState(true);
-  const [lastRefreshed, setLastRefreshed] = useState(null); // FIXED: removed <Date | null> TS annotation
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const retryIntervalRef = useRef(null);   // FIXED: removed <ReturnType<typeof setInterval> | null> TS annotation
-  const tokenRef = useRef(null);           // FIXED: removed <string | null> TS annotation
+  
+  const retryIntervalRef = useRef(null);
+  const tokenRef = useRef(null);
   const initializedRef = useRef(false);
 
-  const loadData = useCallback(async (token, silent = false) => {  // FIXED: removed TS type annotation
+  const loadData = useCallback(async (token, silent = false) => {
     if (!silent) setIsRefreshing(true);
     try {
       const net = await NetInfo.fetch();
-      if (!net.isConnected) { setIsOnline(false); return; }
+      if (!net.isConnected) { 
+        setIsOnline(false); 
+        return; 
+      }
       setIsOnline(true);
       await dispatch(fetchCustomers(token));
       setLastRefreshed(new Date());
@@ -43,7 +99,7 @@ export default function Home({ navigation }) {
     }
   }, [dispatch]);
 
-  const startRetryLoop = useCallback((token) => {  // FIXED: removed TS type annotation
+  const startRetryLoop = useCallback((token) => {
     if (retryIntervalRef.current) clearInterval(retryIntervalRef.current);
     retryIntervalRef.current = setInterval(async () => {
       const net = await NetInfo.fetch();
@@ -51,19 +107,31 @@ export default function Home({ navigation }) {
         setIsOnline(true);
         clearInterval(retryIntervalRef.current);
         retryIntervalRef.current = null;
-        await loadData(token, true);  // FIXED: clearInterval pehle, phir loadData — race condition avoid
+        await loadData(token, true);
       }
     }, 2000);
   }, [loadData]);
 
   useEffect(() => {
+    let isMounted = true;
+
     (async () => {
       const token = await AsyncStorage.getItem("token");
-      if (!token) { navigation.replace("Login"); return; }
+      if (!token) { 
+        navigation.replace("Login"); 
+        return; 
+      }
+      if (!isMounted) return;
       tokenRef.current = token;
 
       const profileResult = await dispatch(fetchProfile(token));
-      if (fetchProfile.fulfilled.match(profileResult) && profileResult.payload?.hasPin) {
+      
+      // FIX CONDITION: Evaluates 'unlocked' from state reducer block cleanly
+      if (
+        fetchProfile.fulfilled.match(profileResult) && 
+        profileResult.payload?.hasPin && 
+        !unlocked
+      ) {
         navigation.replace("AppLock");
         return;
       }
@@ -96,15 +164,16 @@ export default function Home({ navigation }) {
     });
 
     return () => {
+      isMounted = false;
       unsubscribe();
       if (retryIntervalRef.current) clearInterval(retryIntervalRef.current);
     };
-  }, []);
+  }, [dispatch, loadData, startRetryLoop, unlocked]);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery.trim()) return customers;
     const q = searchQuery.toLowerCase();
-    return customers.filter((c) => c.name.toLowerCase().includes(q));
+    return customers.filter((c) => c.name?.toLowerCase().includes(q));
   }, [searchQuery, customers]);
 
   const { totalGiven, totalReceived, netBalance } = useMemo(() => {
@@ -118,57 +187,22 @@ export default function Home({ navigation }) {
     return { totalGiven: given, totalReceived: received, netBalance: given - received };
   }, [customers]);
 
-  const renderCustomer = ({ item }) => {
-    let cGiven = 0, cReceived = 0;
-    (item.transactions || []).forEach((t) => {
-      if (t.type === "given") cGiven += t.amount;
-      else cReceived += t.amount;
-    });
-    const net = cGiven - cReceived;
+  const handleCustomerPress = useCallback((item) => {
+    navigation.navigate("ViewCustomerData", { customer: item });
+  }, [navigation]);
 
-    return (
-      <TouchableOpacity
-        style={Styles.customerCard}
-        onPress={() => navigation.navigate("ViewCustomerData", { customer: item })}
-        activeOpacity={0.82}
-      >
-        <View style={Styles.avatarContainer}>
-          <Text style={Styles.avatar}>{item.name[0].toUpperCase()}</Text>
-        </View>
-        <View style={Styles.customerInfo}>
-          <Text style={Styles.customerName}>{item.name}</Text>
-          <Text style={Styles.customerPhone}>{item.customerPhone || item.phone}</Text>
-        </View>
-        <View style={[
-          Styles.balanceBox,
-          net > 0 ? Styles.balancePositive : net < 0 ? Styles.balanceNegative : null
-        ]}>
-          <Text style={[
-            Styles.balanceLabel,
-            net > 0 ? Styles.balanceLabelPos : net < 0 ? Styles.balanceLabelNeg : Styles.balanceLabelNeutral
-          ]}>
-            {net > 0 ? "OWES" : net < 0 ? "YOU OWE" : "SETTLED"}
-          </Text>
-          <Text style={[
-            Styles.balanceAmount,
-            net > 0 ? Styles.balanceLabelPos : net < 0 ? Styles.balanceLabelNeg : Styles.balanceLabelNeutral
-          ]}>
-            ₹{Math.abs(net).toLocaleString()}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderCustomer = useCallback(({ item }) => (
+    <CustomerItem item={item} onPress={handleCustomerPress} />
+  ), [handleCustomerPress]);
 
   return (
     <SafeAreaView style={Styles.container}>
-      {/* Header */}
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Header Minimalized Layout */}
       <View style={Styles.header}>
         <View style={Styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Settings")}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity onPress={() => navigation.navigate("Settings")} activeOpacity={0.85}>
             {profilePic ? (
               <Image source={{ uri: profilePic }} style={Styles.headerAvatar} />
             ) : (
@@ -188,16 +222,11 @@ export default function Home({ navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Settings")}
-          style={Styles.settingsBtn}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity onPress={() => navigation.navigate("Settings")} style={Styles.settingsBtn} activeOpacity={0.85}>
           <Text style={Styles.settingsIcon}>⚙️</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Offline Banner */}
       {!isOnline && (
         <View style={Styles.offlineBanner}>
           <Text style={Styles.offlineBannerIcon}>📡</Text>
@@ -206,7 +235,7 @@ export default function Home({ navigation }) {
         </View>
       )}
 
-      {/* Summary Row */}
+      {/* Metrics Row Grid styled to match light grey contrast updates */}
       <View style={Styles.summaryRow}>
         <View style={[Styles.summaryCard, Styles.givenCard]}>
           <Text style={Styles.summaryLabel}>Total Given</Text>
@@ -224,12 +253,11 @@ export default function Home({ navigation }) {
         </View>
       </View>
 
-      {/* Search */}
       <View style={Styles.searchContainer}>
         <Text style={Styles.searchIcon}>🔍</Text>
         <TextInput
           placeholder="Search customers…"
-          placeholderTextColor="#aaa"
+          placeholderTextColor="#94A3B8"
           style={Styles.searchBox}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -241,7 +269,6 @@ export default function Home({ navigation }) {
         )}
       </View>
 
-      {/* Section header */}
       <View style={Styles.listHeader}>
         <View>
           <Text style={Styles.listHeaderText}>
@@ -260,17 +287,16 @@ export default function Home({ navigation }) {
           activeOpacity={0.75}
         >
           {isRefreshing ? (
-            <ActivityIndicator size="small" color="#3498db" />
+            <ActivityIndicator size="small" color="#4F46E5" />
           ) : (
             <Text style={Styles.refreshBtnIcon}>🔄</Text>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* List */}
       {customersLoading ? (
         <View style={Styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#3498db" />
+          <ActivityIndicator size="large" color="#4F46E5" />
           <Text style={Styles.loaderText}>Loading customers…</Text>
         </View>
       ) : (
@@ -290,12 +316,7 @@ export default function Home({ navigation }) {
         />
       )}
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={Styles.fab}
-        onPress={() => navigation.navigate("AddCustomer")}
-        activeOpacity={0.88}
-      >
+      <TouchableOpacity style={Styles.fab} onPress={() => navigation.navigate("AddCustomer")} activeOpacity={0.88}>
         <Text style={Styles.fabText}>+</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -303,14 +324,16 @@ export default function Home({ navigation }) {
 }
 
 const Styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f4f8" },
+  container: { flex: 1, backgroundColor: "#F1F5F9" }, // Sourced Milky Grey Theme
   header: {
-    backgroundColor: "#3498db",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
     paddingVertical: 14,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: "#E2E8F0"
   },
   headerLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   headerAvatar: {
@@ -318,33 +341,29 @@ const Styles = StyleSheet.create({
     height: 44,
     borderRadius: 14,
     marginRight: 12,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.6)",
   },
   headerAvatarPlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "#4F46E5",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
   },
-  headerAvatarText: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  headerAvatarText: { fontSize: 18, fontWeight: "700", color: "#fff" },
   headerNameBlock: { flex: 1 },
-  greeting: { fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 1 },
-  headerName: { fontSize: 17, fontWeight: "800", color: "#fff" },
+  greeting: { fontSize: 11, color: "#64748B", fontWeight: "500", marginBottom: 1 },
+  headerName: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
   settingsBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
   },
-  settingsIcon: { fontSize: 18 },
+  settingsIcon: { fontSize: 16 },
   summaryRow: {
     flexDirection: "row",
     gap: 8,
@@ -355,19 +374,17 @@ const Styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     padding: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  givenCard: { backgroundColor: "#fdecea" },
-  receivedCard: { backgroundColor: "#e8f8f0" },
-  netCard: { backgroundColor: "#eaf4fb" },
-  summaryLabel: { fontSize: 10, fontWeight: "700", color: "#7f8c8d", letterSpacing: 0.4 },
-  summaryAmount: { fontSize: 15, fontWeight: "800", color: "#1a2533", marginTop: 4 },
-  netPos: { color: "#27ae60" },
-  netNeg: { color: "#e74c3c" },
+  givenCard: { borderLeftWidth: 3, borderLeftColor: "#EF4444" },
+  receivedCard: { borderLeftWidth: 3, borderLeftColor: "#10B981" },
+  netCard: { borderLeftWidth: 3, borderLeftColor: "#4F46E5" },
+  summaryLabel: { fontSize: 10, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.4 },
+  summaryAmount: { fontSize: 14, fontWeight: "700", color: "#1E293B", marginTop: 4 },
+  netPos: { color: "#16A34A" },
+  netNeg: { color: "#DC2626" },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -377,18 +394,13 @@ const Styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#e0e6ed",
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderColor: "#E2E8F0",
   },
-  searchIcon: { fontSize: 16, marginRight: 8 },
-  searchBox: { flex: 1, color: "#1a2533", fontSize: 15, paddingVertical: 11 },
-  searchClear: { fontSize: 16, color: "#aaa", paddingLeft: 8 },
+  searchIcon: { fontSize: 16, marginRight: 8, opacity: 0.5 },
+  searchBox: { flex: 1, color: "#0F172A", fontSize: 14, paddingVertical: 11 },
+  searchClear: { fontSize: 16, color: "#94A3B8", paddingLeft: 8 },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-  loaderText: { fontSize: 14, color: "#7f8c8d" },
+  loaderText: { fontSize: 14, color: "#64748B" },
   listContent: { paddingHorizontal: 16, paddingBottom: 100, paddingTop: 4 },
   customerCard: {
     backgroundColor: "#fff",
@@ -397,44 +409,41 @@ const Styles = StyleSheet.create({
     marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   avatarContainer: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    backgroundColor: "#3498db",
+    backgroundColor: "#EEF2F6",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
-  avatar: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  avatar: { fontSize: 16, fontWeight: "700", color: "#475569" },
   customerInfo: { flex: 1 },
-  customerName: { fontSize: 15, fontWeight: "700", color: "#1a2533" },
-  customerPhone: { fontSize: 12, color: "#7f8c8d", marginTop: 3 },
+  customerName: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
+  customerPhone: { fontSize: 12, color: "#64748B", marginTop: 3 },
   balanceBox: {
     alignItems: "flex-end",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
     minWidth: 72,
   },
-  balancePositive: { backgroundColor: "#e8f8f0" },
-  balanceNegative: { backgroundColor: "#fdecea" },
+  balancePositive: { backgroundColor: "#DCFCE7" },
+  balanceNegative: { backgroundColor: "#FEE2E2" },
   balanceLabel: { fontSize: 9, fontWeight: "700", letterSpacing: 0.4 },
-  balanceAmount: { fontSize: 14, fontWeight: "800", marginTop: 2 },
-  balanceLabelPos: { color: "#27ae60" },
-  balanceLabelNeg: { color: "#e74c3c" },
-  balanceLabelNeutral: { color: "#7f8c8d" },
+  balanceAmount: { fontSize: 13, fontWeight: "700", marginTop: 2 },
+  balanceLabelPos: { color: "#15803D" },
+  balanceLabelNeg: { color: "#B91C1C" },
+  balanceLabelNeutral: { color: "#64748B" },
   offlineBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e74c3c",
+    backgroundColor: "#EF4444",
     paddingHorizontal: 16,
     paddingVertical: 9,
     gap: 8,
@@ -449,39 +458,35 @@ const Styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  listHeaderText: { fontSize: 13, fontWeight: "700", color: "#7f8c8d", letterSpacing: 0.3 },
+  listHeaderText: { fontSize: 11, fontWeight: "700", color: "#64748B", letterSpacing: 0.5 },
   refreshBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#eaf4fb",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#c5dff0",
+    borderColor: "#E2E8F0",
   },
   refreshBtnDisabled: { opacity: 0.5 },
-  refreshBtnIcon: { fontSize: 16 },
-  lastRefreshedText: { fontSize: 10, color: "#aab8c2", marginTop: 1 },
+  refreshBtnIcon: { fontSize: 14 },
+  lastRefreshedText: { fontSize: 10, color: "#94A3B8", marginTop: 1 },
   emptyState: { alignItems: "center", paddingVertical: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 17, fontWeight: "700", color: "#1a2533" },
-  emptySubtext: { fontSize: 13, color: "#7f8c8d", marginTop: 6 },
+  emptyIcon: { fontSize: 40, marginBottom: 12, opacity: 0.5 },
+  emptyText: { fontSize: 16, fontWeight: "600", color: "#475569" },
+  emptySubtext: { fontSize: 12, color: "#94A3B8", marginTop: 6 },
   fab: {
     position: "absolute",
     bottom: 24,
     right: 24,
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: "#3498db",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#4F46E5",
     justifyContent: "center",
     alignItems: "center",
-    elevation: 6,
-    shadowColor: "#3498db",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
+    elevation: 4,
   },
-  fabText: { fontSize: 30, color: "#fff", fontWeight: "700", lineHeight: 34 },
+  fabText: { fontSize: 28, color: "#fff", fontWeight: "400", lineHeight: 32 },
 });

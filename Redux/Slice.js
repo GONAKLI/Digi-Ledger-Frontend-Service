@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
- //const BASE = "https://backend.gonakli.com";
- const BASE = "http://172.27.212.99:5005";
+  const BASE = "https://digibackend.gonakli.com";
+ // const BASE = "http://10.131.38.99:5005";
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
 
@@ -57,7 +57,11 @@ export const requestLoginOtp = createAsyncThunk(
         return rejectWithValue(err.reason || "Failed to send OTP");
       }
       const data = await res.json();
-      return data.phone;
+      return {
+        phone:data.phone,
+        tempOtp:data.otp
+      }
+        
     } catch (err) {
       return rejectWithValue(err.message || "Network error");
     }
@@ -306,6 +310,7 @@ export const verifyPinThunk = createAsyncThunk(
 
 const initialState = {
   phone: null,
+  tempOtp:null,
   token: null,
   userName: "",
   profilePic: "",
@@ -341,7 +346,7 @@ const Slice = createSlice({
     // requestLoginOtp
     builder
       .addCase(requestLoginOtp.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(requestLoginOtp.fulfilled, (state, action) => { state.loading = false; state.phone = action.payload; })
+      .addCase(requestLoginOtp.fulfilled, (state, action) => { state.loading = false; state.phone = action.payload.phone; state.tempOtp = action.payload.tempOtp })
       .addCase(requestLoginOtp.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
 
     // validateOtp

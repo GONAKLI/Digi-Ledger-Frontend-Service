@@ -7,6 +7,7 @@ import {
   View,
   SafeAreaView,
   Alert,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
@@ -32,6 +33,7 @@ function playSound(soundFile: string) {
   }
 }
 
+// Fixed Date String to standard format
 function formatDate(isoString: string) {
   if (!isoString) return "—";
   const d = new Date(isoString);
@@ -40,21 +42,6 @@ function formatDate(isoString: string) {
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 1: Extract TransactionCard into its own component so hooks (useRef,
-// useEffect) are called at the top level of a component — not inside a
-// useCallback. Calling hooks inside a callback violates the Rules of Hooks
-// and causes a runtime error.
-// ─────────────────────────────────────────────────────────────────────────────
-
-type TransactionCardProps = {
-  item: any;
-  index: number;
-  customerName: string;
-  balanceBefore: number; // net balance just before this transaction
-  balanceAfter: number;  // net balance just after this transaction
-};
 
 function formatTime(isoString: string) {
   if (!isoString) return "";
@@ -66,57 +53,63 @@ function formatTime(isoString: string) {
   return `${String(hours).padStart(2, "0")}:${mins} ${ampm}`;
 }
 
-function TransactionCard({ item, index, customerName, balanceBefore, balanceAfter }: TransactionCardProps) {
+// ─── Transaction Card Component ────────────────────────────────────────────────
+
+type TransactionCardProps = {
+  item: any;
+  index: number;
+  customerName: string;
+  balanceBefore: number;
+  balanceAfter: number;
+};
+
+const TransactionCard = React.memo(({ item, balanceAfter }: TransactionCardProps) => {
   const isGiven = item.type === "given";
 
-  // Balance label: balanceAfter = running total after this tx
-  // Positive = we gave more than received = Due from customer
-  // Negative = we received more than gave = Advance (overpaid)
   const balanceLabel =
     balanceAfter > 0
-      ? `Due ₹${Math.abs(balanceAfter).toLocaleString()}`
+      ? `Owes ₹${Math.abs(balanceAfter).toLocaleString()}`
       : balanceAfter < 0
       ? `Advance ₹${Math.abs(balanceAfter).toLocaleString()}`
-      : "Settled ₹0";
+      : "Settled";
 
   const balanceLabelColor =
-    balanceAfter > 0 ? "#ff6b6b" : balanceAfter < 0 ? "#51cf66" : "rgba(255,255,255,0.4)";
+    balanceAfter > 0 ? "#DC2626" : balanceAfter < 0 ? "#16A34A" : "#64748B";
 
   return (
-    <View style={[Styles.txRow, isGiven ? Styles.txRowGiven : Styles.txRowReceived]}>
-      {/* Chat bubble */}
-      <View style={[Styles.txBubble, isGiven ? Styles.txBubbleGiven : Styles.txBubbleReceived]}>
-        {/* Arrow tip */}
-        <View style={[Styles.txTip, isGiven ? Styles.txTipGiven : Styles.txTipReceived]} />
-
-        {/* Amount row with arrow icon */}
-        <View style={Styles.txAmountRow}>
-          <Text style={[Styles.txArrowIcon, isGiven ? Styles.txArrowGiven : Styles.txArrowReceived]}>
-            {isGiven ? "↑" : "↓"}
-          </Text>
-          <Text style={[Styles.txAmount, isGiven ? Styles.txAmountTextGiven : Styles.txAmountTextReceived]}>
-            ₹{Number(item.amount).toLocaleString()}
-          </Text>
-          <Text style={Styles.txTime}>{formatTime(item.date)} ✓</Text>
-        </View>
-
-        {/* Note */}
-        {item.note && item.note !== "No note" ? (
-          <Text style={Styles.txNote}>{item.note}</Text>
-        ) : null}
+    <View style={Styles.txRow}>
+      {/* Visual Timeline Dot & Line */}
+      <View style={Styles.timelineContainer}>
+        <View style={[Styles.timelineDot, isGiven ? Styles.dotGiven : Styles.dotReceived]} />
+        <View style={Styles.timelineVerticalLine} />
       </View>
 
-      {/* Balance below bubble */}
-      <Text style={[Styles.txBalanceBelow, isGiven ? Styles.txBalanceBelowGiven : Styles.txBalanceBelowReceived, { color: balanceLabelColor }]}>
-        {balanceLabel}
-      </Text>
+      {/* Main Card Render Block */}
+      <View style={Styles.txContentContainer}>
+        <View style={Styles.txDetailsBlock}>
+          <Text style={Styles.txTimeText}>{formatTime(item.date)}</Text>
+          {item.note && item.note !== "No note" ? (
+            <Text style={Styles.txNoteText} numberOfLines={2}>{item.note}</Text>
+          ) : (
+            <Text style={Styles.txNoNoteText}>No entry description</Text>
+          )}
+          <Text style={[Styles.txRunningBalance, { color: balanceLabelColor }]}>
+            {balanceLabel}
+          </Text>
+        </View>
+
+        {/* Amount Actions Right hand block */}
+        <View style={Styles.txAmountBlock}>
+          <Text style={[Styles.txAmountText, isGiven ? Styles.textNeg : Styles.textPos]}>
+            {isGiven ? "-" : "+"} ₹{Number(item.amount).toLocaleString()}
+          </Text>
+        </View>
+      </View>
     </View>
   );
-}
+});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function ViewCustomerData({ route, navigation }) {
   const dispatch = useDispatch();
@@ -128,7 +121,6 @@ export default function ViewCustomerData({ route, navigation }) {
     address: route.params.customer.address ?? "",
   });
 
-  // Transactions are mutable — live in their own state variable
   const [transactions, setTransactions] = useState<any[]>(
     route.params.customer.transactions ?? []
   );
@@ -140,7 +132,6 @@ export default function ViewCustomerData({ route, navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // ── Derived totals ─────────────────────────────────────────────────────────
   const { totalGiven, totalReceived, netBalance } = useMemo(() => {
     let given = 0, received = 0;
     transactions.forEach((t) => {
@@ -150,10 +141,8 @@ export default function ViewCustomerData({ route, navigation }) {
     return { totalGiven: given, totalReceived: received, netBalance: given - received };
   }, [transactions]);
 
-  // ── Callback: called by TransactionHandler on success ─────────────────────
   const handleTransactionAdded = useCallback((newTransaction: any) => {
     playSound("success_chime.mp3");
-    // Append at end — list is oldest→newest so new tx goes to bottom
     setTransactions((prev) => [...prev, newTransaction]);
   }, []);
 
@@ -162,15 +151,14 @@ export default function ViewCustomerData({ route, navigation }) {
     setShowModal(true);
   };
 
-  // ── Delete customer ────────────────────────────────────────────────────────
   const handleDeleteCustomer = async () => {
     Alert.alert(
       "Delete Customer",
-      `Are you sure you want to permanently delete ${customerMeta.name}'s khata? All transaction history will be lost.`,
+      `Are you sure you want to permanently delete ${customerMeta.name}'s ledger? All historical transactions will be cleared.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Delete Ledger",
           style: "destructive",
           onPress: async () => {
             const token = await AsyncStorage.getItem("token");
@@ -190,26 +178,25 @@ export default function ViewCustomerData({ route, navigation }) {
     );
   };
 
-  // ── Running balance per transaction ───────────────────────────────────────
-  // Transactions array may be newest-first from server. We sort oldest→newest
-  // so the list always reads chronologically top→bottom, and new transactions
-  // are always appended at the bottom consistently.
   const transactionsWithBalance = useMemo(() => {
-    // Sort by date ascending (oldest first)
     const sorted = [...transactions].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
     let running = 0;
     return sorted.map((t) => {
       running += t.type === "given" ? t.amount : -t.amount;
-      return { ...t, balanceBefore: running - (t.type === "given" ? t.amount : -t.amount), balanceAfter: running };
+      return { 
+        ...t, 
+        balanceBefore: running - (t.type === "given" ? t.amount : -t.amount), 
+        balanceAfter: running 
+      };
     });
   }, [transactions]);
+
   const renderTransaction = useCallback(
     ({ item, index }: { item: any; index: number }) => {
-      // Date separator: show if first item or different date from the previous (older) item
       const currDate = item.date ? new Date(item.date).toDateString() : null;
-      const prevItem = transactionsWithBalance[index - 1]; // list is oldest-first
+      const prevItem = transactionsWithBalance[index - 1];
       const prevDate = prevItem?.date ? new Date(prevItem.date).toDateString() : null;
       const showDateSep = index === 0 || (currDate && currDate !== prevDate);
 
@@ -217,10 +204,7 @@ export default function ViewCustomerData({ route, navigation }) {
         <>
           {showDateSep && (
             <View style={Styles.dateSepRow}>
-              <View style={Styles.dateSepLine} />
-              <View style={Styles.dateSepPill}>
-                <Text style={Styles.dateSepText}>{formatDate(item.date)}</Text>
-              </View>
+              <Text style={Styles.dateSepText}>{formatDate(item.date)}</Text>
               <View style={Styles.dateSepLine} />
             </View>
           )}
@@ -244,11 +228,19 @@ export default function ViewCustomerData({ route, navigation }) {
 
   return (
     <SafeAreaView style={Styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <View style={Styles.headerSection}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={Styles.backBtn}>
-          <Text style={Styles.backBtnText}>← Back</Text>
-        </TouchableOpacity>
+        <View style={Styles.topHeaderActionRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={Styles.backBtn}>
+            <Text style={Styles.backBtnText}>← Ledger</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={handleDeleteCustomer} style={Styles.deleteCustomerBtn} activeOpacity={0.7}>
+            <Text style={Styles.deleteCustomerIcon}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={Styles.customerHeader}>
           <View style={Styles.avatarLarge}>
@@ -261,60 +253,45 @@ export default function ViewCustomerData({ route, navigation }) {
               {customerMeta.name}
             </Text>
             <Text style={Styles.customerPhoneLarge}>📱 {customerMeta.customerPhone}</Text>
-            {customerMeta.address && (
+            {customerMeta.address ? (
               <Text style={Styles.customerAddressLarge} numberOfLines={1}>
                 📍 {customerMeta.address}
               </Text>
-            )}
+            ) : null}
           </View>
-          {/* Fix 5: Delete button inline with customer info */}
-          <TouchableOpacity onPress={handleDeleteCustomer} style={Styles.deleteCustomerBtn}>
-            <Text style={Styles.deleteCustomerIcon}>🗑️</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Balance summary cards ────────────────────────────────────────────── */}
+      {/* ── Balance Summary Section ────────────────────────────────────────── */}
       <View style={Styles.summarySection}>
         <View style={[Styles.summaryCard, Styles.summaryCardGiven]}>
           <Text style={Styles.summaryLabel}>Total Given</Text>
-          <Text style={[Styles.summaryAmount, Styles.summaryAmountGiven]}>
+          <Text style={[Styles.summaryAmount, Styles.textNeg]}>
             ₹{totalGiven.toLocaleString()}
           </Text>
         </View>
 
         <View style={[Styles.summaryCard, Styles.summaryCardReceived]}>
-          <Text style={Styles.summaryLabel}>Total Received</Text>
-          <Text style={[Styles.summaryAmount, Styles.summaryAmountReceived]}>
+          <Text style={Styles.summaryLabel}>Received</Text>
+          <Text style={[Styles.summaryAmount, Styles.textPos]}>
             ₹{totalReceived.toLocaleString()}
           </Text>
         </View>
 
-        <View
-          style={[
-            Styles.summaryCard,
-            Styles.summaryCardNet,
-            netBalance >= 0 ? Styles.netPositive : Styles.netNegative,
-          ]}
-        >
-          <Text style={Styles.summaryLabel}>Balance</Text>
-          <Text
-            style={[
-              Styles.summaryAmount,
-              netBalance >= 0 ? Styles.netBalancePos : Styles.netBalanceNeg,
-            ]}
-          >
-            {netBalance >= 0 ? "↑" : "↓"} ₹{Math.abs(netBalance).toLocaleString()}
+        <View style={[Styles.summaryCard, Styles.summaryCardNet, netBalance >= 0 ? Styles.netCardPos : Styles.netCardNeg]}>
+          <Text style={Styles.summaryLabel}>Net Balance</Text>
+          <Text style={[Styles.summaryAmount, netBalance >= 0 ? Styles.textPos : Styles.textNeg]}>
+            ₹{Math.abs(netBalance).toLocaleString()}
           </Text>
         </View>
       </View>
 
-      {/* ── Transaction list ──────────────────────────────────────────────── */}
+      {/* ── Transaction List ──────────────────────────────────────────────── */}
       <View style={Styles.txSection}>
         <View style={Styles.txSectionHeader}>
-          <Text style={Styles.sectionTitle}>💳 Transactions</Text>
+          <Text style={Styles.sectionTitle}>Transaction Timeline</Text>
           <View style={Styles.txCountBadge}>
-            <Text style={Styles.txCountText}>{transactions.length}</Text>
+            <Text style={Styles.txCountText}>{transactions.length} entries</Text>
           </View>
         </View>
 
@@ -323,35 +300,33 @@ export default function ViewCustomerData({ route, navigation }) {
           keyExtractor={keyExtractor}
           renderItem={renderTransaction}
           contentContainerStyle={Styles.listContent}
-          scrollEnabled={transactions.length > 3}
           ListEmptyComponent={
             <View style={Styles.emptyState}>
               <Text style={Styles.emptyIcon}>📝</Text>
-              <Text style={Styles.emptyText}>No transactions yet</Text>
-              <Text style={Styles.emptySubtext}>Tap a button below to add one</Text>
+              <Text style={Styles.emptyText}>No ledger entries yet</Text>
+              <Text style={Styles.emptySubtext}>Use actions below to commit transactions</Text>
             </View>
           }
           showsVerticalScrollIndicator={false}
         />
       </View>
 
-      {/* ── Action buttons ─────────────────────────────────────────────────── */}
+      {/* ── Action Buttons ─────────────────────────────────────────────────── */}
       <View style={Styles.actionButtons}>
         <TouchableOpacity
           style={[Styles.actionBtn, Styles.receivedBtn]}
           onPress={() => handleTransaction("received")}
-          activeOpacity={0.75}
+          activeOpacity={0.8}
         >
-          <Text style={Styles.actionBtnIcon}>📥</Text>
-          <Text style={Styles.actionBtnText}>Money Received</Text>
+          <Text style={Styles.actionBtnText}>+ Got Money</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[Styles.actionBtn, Styles.givenBtn]}
           onPress={() => handleTransaction("given")}
-          activeOpacity={0.75}
+          activeOpacity={0.8}
         >
-          <Text style={Styles.actionBtnIcon}>📤</Text>
-          <Text style={Styles.actionBtnText}>Money Given</Text>
+          <Text style={Styles.actionBtnText}>- Gave Money</Text>
         </TouchableOpacity>
       </View>
 
@@ -367,280 +342,202 @@ export default function ViewCustomerData({ route, navigation }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STYLES
+// HIGH-FIDELITY MILKY GREY UI STYLES
 // ─────────────────────────────────────────────────────────────────────────────
 
 const Styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f1419" },
+  container: { flex: 1, backgroundColor: "#F1F5F9" }, // Soft Milky Greyish Base
 
-  // ── Header ─────────────────────────────────────────────────────────────────
+  // Header System (Optimized & Sized Down)
   headerSection: {
-    // FIX 2: React Native does not support CSS gradient strings as
-    // backgroundColor. Replaced with the gradient's start color (#667eea).
-    // To get a true gradient, use a library like react-native-linear-gradient.
-    backgroundColor: "#667eea",
-    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.1)",
+    paddingBottom: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  backBtn: { marginBottom: 10 },
-  backBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  customerHeader: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
+  topHeaderActionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  backBtn: { paddingVertical: 4 },
+  backBtnText: { color: "#64748B", fontSize: 13, fontWeight: "600" }, // Sized Down
+  customerHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatarLarge: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    width: 48, // Sized Down
+    height: 48, // Sized Down
+    borderRadius: 24,
+    backgroundColor: "#E2E8F0",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
   },
-  avatarTextLarge: { fontSize: 24, fontWeight: "800", color: "#fff" },
+  avatarTextLarge: { fontSize: 18, fontWeight: "700", color: "#475569" }, // Sized Down
   customerHeaderInfo: { flex: 1 },
-  customerNameLarge: { fontSize: 17, fontWeight: "800", color: "#fff", marginBottom: 2 },
-  customerPhoneLarge: { fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 1 },
-  customerAddressLarge: { fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 1 },
+  customerNameLarge: { fontSize: 16, fontWeight: "700", color: "#0F172A", letterSpacing: 0.1 }, // Sized Down
+  customerPhoneLarge: { fontSize: 11, color: "#64748B", marginTop: 2 }, // Sized Down
+  customerAddressLarge: { fontSize: 11, color: "#94A3B8", marginTop: 1 }, // Sized Down
   deleteCustomerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(231,76,60,0.25)",
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "#FEF2F2",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "rgba(231,76,60,0.5)",
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
   },
-  deleteCustomerIcon: { fontSize: 18 },
+  deleteCustomerIcon: { fontSize: 14 },
 
-  // ── Summary Cards ──────────────────────────────────────────────────────────
+  // Summary Cards Rows (Light Variants)
   summarySection: {
     flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: "rgba(0,0,0,0.2)",
+    gap: 8,
+    paddingHorizontal: 16,
+    marginTop: -12, 
+    marginBottom: 14,
   },
   summaryCard: {
     flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1.5,
-    elevation: 3,
-    shadowColor: "#000",
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  summaryCardGiven: {
-    backgroundColor: "rgba(231,76,60,0.15)",
-    borderColor: "rgba(231,76,60,0.4)",
-  },
-  summaryCardReceived: {
-    backgroundColor: "rgba(39,174,96,0.15)",
-    borderColor: "rgba(39,174,96,0.4)",
-  },
-  summaryCardNet: {
-    backgroundColor: "rgba(52,152,219,0.15)",
-    borderColor: "rgba(52,152,219,0.4)",
-  },
-  netPositive: {
-    borderColor: "rgba(39,174,96,0.6)",
-    backgroundColor: "rgba(39,174,96,0.2)",
-  },
-  netNegative: {
-    borderColor: "rgba(231,76,60,0.6)",
-    backgroundColor: "rgba(231,76,60,0.2)",
-  },
-  summaryLabel: { fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.6)", marginBottom: 6 },
-  summaryAmount: { fontSize: 16, fontWeight: "800" },
-  summaryAmountGiven: { color: "#ff6b6b" },
-  summaryAmountReceived: { color: "#51cf66" },
-  netBalancePos: { color: "#51cf66" },
-  netBalanceNeg: { color: "#ff6b6b" },
+  summaryCardGiven: { borderLeftWidth: 3, borderLeftColor: "#EF4444" },
+  summaryCardReceived: { borderLeftWidth: 3, borderLeftColor: "#10B981" },
+  summaryCardNet: { borderLeftWidth: 3 },
+  netCardPos: { borderLeftColor: "#10B981" },
+  netCardNeg: { borderLeftColor: "#EF4444" },
+  summaryLabel: { fontSize: 9, fontWeight: "600", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.4 },
+  summaryAmount: { fontSize: 13, fontWeight: "700", marginTop: 2 },
+  textPos: { color: "#16A34A" }, // High Contrast Green
+  textNeg: { color: "#DC2626" }, // High Contrast Red
 
-  // ── Transaction Section ────────────────────────────────────────────────────
-  txSection: { flex: 1, paddingHorizontal: 14, paddingTop: 10 },
+  // Transactions View Structure
+  txSection: { flex: 1, paddingHorizontal: 16 },
   txSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
     marginBottom: 12,
+    paddingHorizontal: 2,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#475569", letterSpacing: 0.1 },
   txCountBadge: {
-    backgroundColor: "#667eea",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: "rgba(102,126,234,0.5)",
+    backgroundColor: "#E2E8F0",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  txCountText: { fontSize: 11, fontWeight: "800", color: "#fff" },
-  listContent: { paddingBottom: 10 },
+  txCountText: { fontSize: 10, fontWeight: "600", color: "#64748B" },
+  listContent: { paddingBottom: 20 },
 
-  // ── WhatsApp-style Transaction Bubbles ────────────────────────────────────
+  // Interactive Timeline Setup
   txRow: {
-    marginBottom: 14,
-    paddingHorizontal: 10,
-  },
-  txRowReceived: {
-    alignItems: "flex-start",  // Left side
-  },
-  txRowGiven: {
-    alignItems: "flex-end",    // Right side
-  },
-
-  txBubble: {
-    maxWidth: "72%",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    position: "relative",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  txBubbleReceived: {
-    backgroundColor: "#1e2d24",
-    borderTopLeftRadius: 2,
-    borderWidth: 1,
-    borderColor: "rgba(39,174,96,0.3)",
-  },
-  txBubbleGiven: {
-    backgroundColor: "#1a2533",
-    borderTopRightRadius: 2,
-    borderWidth: 1,
-    borderColor: "rgba(231,76,60,0.3)",
-  },
-
-  // Triangle tip
-  txTip: {
-    position: "absolute",
-    top: 0,
-    width: 0,
-    height: 0,
-    borderStyle: "solid",
-  },
-  txTipReceived: {
-    left: -8,
-    borderTopWidth: 10,
-    borderRightWidth: 10,
-    borderBottomWidth: 0,
-    borderLeftWidth: 0,
-    borderTopColor: "rgba(39,174,96,0.3)",
-    borderRightColor: "transparent",
-  },
-  txTipGiven: {
-    right: -8,
-    borderTopWidth: 10,
-    borderLeftWidth: 10,
-    borderBottomWidth: 0,
-    borderRightWidth: 0,
-    borderTopColor: "rgba(231,76,60,0.3)",
-    borderLeftColor: "transparent",
-  },
-
-  txAmountRow: {
     flexDirection: "row",
+    marginBottom: 2,
+  },
+  timelineContainer: {
     alignItems: "center",
-    gap: 6,
+    width: 20,
   },
-  txArrowIcon: {
-    fontSize: 18,
-    fontWeight: "900",
+  timelineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 14,
+    zIndex: 2,
+    borderWidth: 1.5,
+    borderColor: "#F1F5F9",
   },
-  txArrowReceived: { color: "#51cf66" },
-  txArrowGiven: { color: "#ff6b6b" },
-  txAmount: { fontSize: 20, fontWeight: "800" },
-  txAmountTextGiven: { color: "#ffffff" },
-  txAmountTextReceived: { color: "#ffffff" },
-  txTime: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.4)",
-    marginLeft: 4,
-    alignSelf: "flex-end",
-    marginBottom: 1,
+  dotGiven: { backgroundColor: "#EF4444" },
+  dotReceived: { backgroundColor: "#10B981" },
+  timelineVerticalLine: {
+    flex: 1,
+    width: 1.5,
+    backgroundColor: "#CBD5E1",
+    marginVertical: 2,
   },
-  txNote: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.55)",
-    marginTop: 4,
+  txContentContainer: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    borderRadius: 12,
+    marginLeft: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
   },
+  txDetailsBlock: { flex: 1, paddingRight: 6 },
+  txTimeText: { fontSize: 10, color: "#94A3B8", fontWeight: "500" },
+  txNoteText: { fontSize: 13, color: "#1E293B", marginTop: 3, fontWeight: "400" },
+  txNoNoteText: { fontSize: 12, color: "#94A3B8", marginTop: 3, fontStyle: "italic" },
+  txRunningBalance: { fontSize: 11, fontWeight: "600", marginTop: 4 },
+  txAmountBlock: { alignItems: "flex-end", justifyContent: "center" },
+  txAmountText: { fontSize: 15, fontWeight: "700" },
 
-  // Balance shown below each bubble
-  txBalanceBelow: {
-    fontSize: 12,
-    marginTop: 4,
-    marginHorizontal: 4,
-    color: "rgba(255,255,255,0.45)",
-  },
-  txBalanceBelowReceived: { alignSelf: "flex-start" },
-  txBalanceBelowGiven: { alignSelf: "flex-end" },
-
-  // ── Date Separator ─────────────────────────────────────────────────────────
+  // Linear Date Separators
   dateSepRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 10,
-    paddingHorizontal: 10,
+    marginVertical: 8,
     gap: 8,
+  },
+  dateSepText: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   dateSepLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#CBD5E1",
   },
-  dateSepPill: {
-    backgroundColor: "#2a3a4a",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  dateSepText: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.55)",
-    fontWeight: "600",
-  },
-  emptyState: { alignItems: "center", paddingVertical: 40 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-  emptySubtext: { fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 6 },
 
-  // ── Action buttons ─────────────────────────────────────────────────────────
+  // Fallback Empty Screen
+  emptyState: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 20 },
+  emptyIcon: { fontSize: 32, marginBottom: 8, opacity: 0.5 },
+  emptyText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
+  emptySubtext: { fontSize: 12, color: "#94A3B8", marginTop: 2, textAlign: "center" },
+
+  // Fixed Actions CTA Footer
   actionButtons: {
     flexDirection: "row",
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
   },
   actionBtn: {
     flex: 1,
-    flexDirection: "row",
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    borderRadius: 14,
-    paddingVertical: 14,
-    borderWidth: 2,
-  },
-  givenBtn: {
-    backgroundColor: "rgba(231,76,60,0.15)",
-    borderColor: "rgba(231,76,60,0.5)",
   },
   receivedBtn: {
-    backgroundColor: "rgba(39,174,96,0.15)",
-    borderColor: "rgba(39,174,96,0.5)",
+    backgroundColor: "#16A34A", 
   },
-  actionBtnIcon: { fontSize: 18 },
-  actionBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  givenBtn: {
+    backgroundColor: "#DC2626", 
+  },
+  actionBtnText: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 });

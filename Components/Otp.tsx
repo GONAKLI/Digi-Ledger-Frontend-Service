@@ -18,6 +18,7 @@ import { validateOtp, clearError } from "../Redux/Slice";
 
 export default function Otp({ navigation }) {
   const phone = useSelector((state) => state.authOperations.phone);
+  let tempOtp = useSelector((state) => state.authOperations.tempOtp);
   const { loading, error } = useSelector((state) => state.authOperations);
   const dispatch = useDispatch();
 
@@ -134,8 +135,11 @@ export default function Otp({ navigation }) {
           ) : null}
 
           <View style={Styles.infoBox}>
-            <Text style={Styles.infoText}>
+           {/* <Text style={Styles.infoText}>
               ℹ️ OTP expires in 10 minutes. Check your messages if it doesn't arrive shortly.
+            </Text> */}
+             <Text style={Styles.infoText}>
+              ℹ️ Unable To Send Otp Through Message, Here is Your Otp:<Text style={Styles.otpMessage}> {tempOtp} </Text>
             </Text>
           </View>
 
@@ -296,4 +300,12 @@ const Styles = StyleSheet.create({
   // ── Bottom spacer ─────────────────────────────────────────────────────────
   // Gives breathing room above the keyboard when it appears
   bottomSpacer: { height: 40 },
+  otpMessage: {
+    fontWeight: "700",
+    color: "#1a2533",
+    fontSize:18,
+    textAlign: "center",
+    textAlignVertical:"center",
+
+  },
 });

@@ -75,7 +75,7 @@ export default function FirstLoginName({ navigation }) {
               value={name}
               onChangeText={(t) => { setName(t); setError(""); }}
               autoFocus
-              maxLength={50}
+              maxLength={20}
               returnKeyType="done"
               onSubmitEditing={handleContinue}
             />

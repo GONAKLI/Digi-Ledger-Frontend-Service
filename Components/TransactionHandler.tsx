@@ -126,6 +126,7 @@ export default function TransactionHandler(props) {
                   style={Styles.amountInput}
                   keyboardType="decimal-pad"
                   value={amount}
+                  maxLength={7}
                   onChangeText={setAmount}
                   placeholder="0"
                   placeholderTextColor="#ccc"
@@ -145,7 +146,7 @@ export default function TransactionHandler(props) {
                   placeholder="Add a description…"
                   placeholderTextColor="#ccc"
                   multiline
-                  maxLength={200}
+                  maxLength={100}
                   returnKeyType="done"
                   blurOnSubmit
                 />
