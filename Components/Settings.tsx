@@ -236,10 +236,10 @@ export default function Settings({ navigation }) {
         if (!asset?.uri) return;
 
         Alert.alert(
-          "Upload Photo",
-          "To save your profile picture, upload the selected image to your file server and paste the URL.",
+          "Set Profile",
+          "Are You ready to Set Your Profile Picture ",
           [
-            { text: "Use local path (dev only)", onPress: async () => {
+            { text: "I am Ready ", onPress: async () => {
               try {
                 const authToken = await getToken();
                 const result = await dispatch(
@@ -265,7 +265,7 @@ export default function Settings({ navigation }) {
       const result = await dispatch(submitFeedbackThunk({ authToken, feedback: text }));
       if (submitFeedbackThunk.fulfilled.match(result)) {
         setShowFeedbackModal(false);
-        Alert.alert("🙏 Thank you!", "Your feedback has been submitted.");
+        Alert.alert("🙏", "Thanks For Submitting Your Valuable Feedback");
       } else {
         Alert.alert("Error", result.payload || "Failed to submit feedback");
       }
@@ -280,7 +280,7 @@ export default function Settings({ navigation }) {
       const result = await dispatch(setPinThunk({ authToken, pin }));
       if (setPinThunk.fulfilled.match(result)) {
         setShowPinModal(false);
-        Alert.alert("🔒", "App lock PIN set successfully");
+        Alert.alert("🔒", "Your Data is now Fully Secured");
       } else {
         Alert.alert("Error", result.payload || "Failed to set PIN");
       }
@@ -332,7 +332,7 @@ export default function Settings({ navigation }) {
   async function handleDeleteAccount() {
     Alert.alert(
       "Delete Account",
-      "This will permanently delete your account and ALL data including customers and transactions. This cannot be undone.",
+      "Are You Serious, No Return Ticket Allowed After This Step",
       [
         { text: "Cancel", style: "cancel" },
         {

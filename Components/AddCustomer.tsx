@@ -30,11 +30,11 @@ export default function AddCustomer({ navigation }) {
   }, []);
 
   async function handleAddCustomer() {
-    if (!name.trim() || !customerPhone.trim() || !address.trim()) {
-      Alert.alert("Incomplete", "Please fill all fields before continuing.");
+    if (!name.trim() ) {
+      Alert.alert("Customer Name is Mandatory !");
       return;
     }
-    if (customerPhone.length !== 10) {
+    if (customerPhone && customerPhone.length !== 10) {
       Alert.alert("Invalid Phone", "Customer phone must be exactly 10 digits.");
       return;
     }
@@ -94,7 +94,7 @@ export default function AddCustomer({ navigation }) {
 
           {/* Phone */}
           <View style={Styles.formGroup}>
-            <Text style={Styles.label}>Phone Number</Text>
+            <Text style={Styles.label}>Phone Number ( Optional ) </Text>
             <View style={Styles.inputWrapper}>
               <Text style={Styles.icon}>📱</Text>
               <TextInput
@@ -112,7 +112,7 @@ export default function AddCustomer({ navigation }) {
 
           {/* Address */}
           <View style={Styles.formGroup}>
-            <Text style={Styles.label}>Address</Text>
+            <Text style={Styles.label}>Address ( Optional )</Text>
             <View style={[Styles.inputWrapper, Styles.addressWrapper]}>
               <Text style={[Styles.icon, { marginTop: 4 }]}>📍</Text>
               <TextInput

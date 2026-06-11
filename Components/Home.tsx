@@ -23,7 +23,7 @@ const CustomerItem = React.memo(({ item, onPress }) => {
       if (t.type === "given") cGiven += t.amount;
       else cReceived += t.amount;
     });
-    return cGiven - cReceived;
+    return cReceived - cGiven;
   }, [item.transactions]);
 
   return (
@@ -47,7 +47,7 @@ const CustomerItem = React.memo(({ item, onPress }) => {
           Styles.balanceLabel,
           net > 0 ? Styles.balanceLabelPos : net < 0 ? Styles.balanceLabelNeg : Styles.balanceLabelNeutral
         ]}>
-          {net > 0 ? "OWES" : net < 0 ? "YOU OWE" : "SETTLED"}
+          {net > 0 ? "ADVANCE" : net < 0 ? "DUE" : "SETTLED"}
         </Text>
         <Text style={[
           Styles.balanceAmount,
@@ -184,7 +184,7 @@ export default function Home({ navigation }) {
         else received += t.amount;
       });
     });
-    return { totalGiven: given, totalReceived: received, netBalance: given - received };
+    return { totalGiven: given, totalReceived: received, netBalance: received - given };
   }, [customers]);
 
   const handleCustomerPress = useCallback((item) => {
@@ -217,7 +217,7 @@ export default function Home({ navigation }) {
           <View style={Styles.headerNameBlock}>
             <Text style={Styles.greeting}>Welcome back 👋</Text>
             <Text style={Styles.headerName} numberOfLines={1}>
-              {userName || null}
+              {userName || "Dear"}
             </Text>
           </View>
         </View>
@@ -237,14 +237,14 @@ export default function Home({ navigation }) {
 
       {/* Metrics Row Grid styled to match light grey contrast updates */}
       <View style={Styles.summaryRow}>
-        <View style={[Styles.summaryCard, Styles.givenCard]}>
+        {/* <View style={[Styles.summaryCard, Styles.givenCard]}>
           <Text style={Styles.summaryLabel}>Total Given</Text>
           <Text style={Styles.summaryAmount}>₹{totalGiven.toLocaleString()}</Text>
         </View>
         <View style={[Styles.summaryCard, Styles.receivedCard]}>
           <Text style={Styles.summaryLabel}>Total Received</Text>
           <Text style={Styles.summaryAmount}>₹{totalReceived.toLocaleString()}</Text>
-        </View>
+        </View> */}
         <View style={[Styles.summaryCard, Styles.netCard]}>
           <Text style={Styles.summaryLabel}>Net Balance</Text>
           <Text style={[Styles.summaryAmount, netBalance >= 0 ? Styles.netPos : Styles.netNeg]}>
@@ -381,8 +381,8 @@ const Styles = StyleSheet.create({
   givenCard: { borderLeftWidth: 3, borderLeftColor: "#EF4444" },
   receivedCard: { borderLeftWidth: 3, borderLeftColor: "#10B981" },
   netCard: { borderLeftWidth: 3, borderLeftColor: "#4F46E5" },
-  summaryLabel: { fontSize: 10, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.4 },
-  summaryAmount: { fontSize: 14, fontWeight: "700", color: "#1E293B", marginTop: 4 },
+  summaryLabel: { fontSize: 10, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.4, textAlign:"center", textAlignVertical:"center" },
+  summaryAmount: { fontSize: 14, fontWeight: "700", color: "#1E293B", marginTop: 4, textAlign:"center", textAlignVertical:"center" },
   netPos: { color: "#16A34A" },
   netNeg: { color: "#DC2626" },
   searchContainer: {

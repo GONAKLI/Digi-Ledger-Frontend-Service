@@ -68,7 +68,7 @@ const TransactionCard = React.memo(({ item, balanceAfter }: TransactionCardProps
 
   const balanceLabel =
     balanceAfter > 0
-      ? `Owes ₹${Math.abs(balanceAfter).toLocaleString()}`
+      ? `Due ₹${Math.abs(balanceAfter).toLocaleString()}`
       : balanceAfter < 0
       ? `Advance ₹${Math.abs(balanceAfter).toLocaleString()}`
       : "Settled";
@@ -77,7 +77,7 @@ const TransactionCard = React.memo(({ item, balanceAfter }: TransactionCardProps
     balanceAfter > 0 ? "#DC2626" : balanceAfter < 0 ? "#16A34A" : "#64748B";
 
   return (
-    <View style={Styles.txRow}>
+    <View style={item.type ==="received" ? Styles.txRowReceived : Styles.txRowGiven}>
       {/* Visual Timeline Dot & Line */}
       <View style={Styles.timelineContainer}>
         <View style={[Styles.timelineDot, isGiven ? Styles.dotGiven : Styles.dotReceived]} />
@@ -91,7 +91,7 @@ const TransactionCard = React.memo(({ item, balanceAfter }: TransactionCardProps
           {item.note && item.note !== "No note" ? (
             <Text style={Styles.txNoteText} numberOfLines={2}>{item.note}</Text>
           ) : (
-            <Text style={Styles.txNoNoteText}>No entry description</Text>
+            <Text style={Styles.txNoNoteText}>No Description Provided</Text>
           )}
           <Text style={[Styles.txRunningBalance, { color: balanceLabelColor }]}>
             {balanceLabel}
@@ -138,7 +138,7 @@ export default function ViewCustomerData({ route, navigation }) {
       if (t.type === "given") given += t.amount;
       else received += t.amount;
     });
-    return { totalGiven: given, totalReceived: received, netBalance: given - received };
+    return { totalGiven: given, totalReceived: received, netBalance: received - given };
   }, [transactions]);
 
   const handleTransactionAdded = useCallback((newTransaction: any) => {
@@ -153,8 +153,8 @@ export default function ViewCustomerData({ route, navigation }) {
 
   const handleDeleteCustomer = async () => {
     Alert.alert(
-      "Delete Customer",
-      `Are you sure you want to permanently delete ${customerMeta.name}'s ledger? All historical transactions will be cleared.`,
+      `Delete Customer --> ${customerMeta.name}`,
+      `No Way To Recover This Customer After This.  `,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -264,7 +264,7 @@ export default function ViewCustomerData({ route, navigation }) {
 
       {/* ── Balance Summary Section ────────────────────────────────────────── */}
       <View style={Styles.summarySection}>
-        <View style={[Styles.summaryCard, Styles.summaryCardGiven]}>
+        {/* <View style={[Styles.summaryCard, Styles.summaryCardGiven]}>
           <Text style={Styles.summaryLabel}>Total Given</Text>
           <Text style={[Styles.summaryAmount, Styles.textNeg]}>
             ₹{totalGiven.toLocaleString()}
@@ -276,7 +276,7 @@ export default function ViewCustomerData({ route, navigation }) {
           <Text style={[Styles.summaryAmount, Styles.textPos]}>
             ₹{totalReceived.toLocaleString()}
           </Text>
-        </View>
+        </View> */}
 
         <View style={[Styles.summaryCard, Styles.summaryCardNet, netBalance >= 0 ? Styles.netCardPos : Styles.netCardNeg]}>
           <Text style={Styles.summaryLabel}>Net Balance</Text>
@@ -404,6 +404,7 @@ const Styles = StyleSheet.create({
     marginBottom: 14,
   },
   summaryCard: {
+    marginTop:2,
     flex: 1,
     borderRadius: 12,
     padding: 10,
@@ -421,8 +422,8 @@ const Styles = StyleSheet.create({
   summaryCardNet: { borderLeftWidth: 3 },
   netCardPos: { borderLeftColor: "#10B981" },
   netCardNeg: { borderLeftColor: "#EF4444" },
-  summaryLabel: { fontSize: 9, fontWeight: "600", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.4 },
-  summaryAmount: { fontSize: 13, fontWeight: "700", marginTop: 2 },
+  summaryLabel: { fontSize: 9, fontWeight: "600", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.4, textAlign:"center", textAlignVertical:"center" },
+  summaryAmount: { fontSize: 13, fontWeight: "700", marginTop: 2, textAlign:"center", textAlignVertical:"center" },
   textPos: { color: "#16A34A" }, // High Contrast Green
   textNeg: { color: "#DC2626" }, // High Contrast Red
 
@@ -446,10 +447,21 @@ const Styles = StyleSheet.create({
   listContent: { paddingBottom: 20 },
 
   // Interactive Timeline Setup
-  txRow: {
+  // txRow: {
+  //   flexDirection: "row",
+  //   marginBottom: 2,
+  // },
+   txRowReceived: {
     flexDirection: "row",
-    marginBottom: 2,
+    marginBottom: 3,
+    backgroundColor:"#87f6c2"
+  }, txRowGiven: {
+    flexDirection: "row",
+    marginBottom: 3,
+    backgroundColor:"#f486c6"
   },
+
+
   timelineContainer: {
     alignItems: "center",
     width: 20,
@@ -472,6 +484,7 @@ const Styles = StyleSheet.create({
     marginVertical: 2,
   },
   txContentContainer: {
+
     flex: 1,
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
