@@ -1,97 +1,110 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# 📒 Digital Ledger – Everyday Expense Manager
 
-# Getting Started
+**Manage your transactions effortlessly.**
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+Digital Ledger is a digital khata app that replaces traditional paper ledger books for tracking day-to-day transactions between users and their customers. Shopkeepers, small business owners, and individuals can record credit (udhaar) and debit entries per customer, view clear per-customer transaction reports, and rest easy knowing their data is safely stored in the cloud.
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## ✨ Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### 🔐 Secure Onboarding & Authentication
+- **Phone number login** with OTP verification — no passwords to remember.
+- **Profile setup** with name and profile photo (skippable for now, editable later).
+- **App Lock (PIN)** — an optional 4-digit PIN protects the app so only you can open it, with a "Forgot PIN?" recovery path.
 
-```sh
-# Using npm
-npm start
+### 👥 Customer Management
+- **Add customers** quickly with name, phone number (optional), and address (optional).
+- **Search customers** instantly from the home screen.
+- Cloud sync with a visible **"Last synced"** timestamp, so data is protected against device loss.
 
-# OR using Yarn
-yarn start
-```
+### 💰 Transaction Tracking (Digital Khata)
+- Record two kinds of entries per customer:
+  - **+ Got Money** (green) — money you received from the customer.
+  - **− Gave Money** (red) — money you gave (credit/udhaar).
+- Add an **optional note (up to 200 characters)** to each transaction for future reference — e.g. "For books", "Loan for 5 days".
+- Colour-coded timeline: green for credits, red for debits.
 
-## Step 2: Build and run your app
+### 📊 Reports & Reconciliation
+- **Per-customer ledger** with a clear transaction timeline (date, time, note, and amount for every entry).
+- **Net Balance per customer** — shows the exact amount due or in advance, with a running balance on each entry (e.g. "Due ₹200" → "Settled").
+- **Overall Net Balance** on the home screen, aggregated across all customers.
+- Customer cards show **DUE** (red) or **ADVANCE** (green) badges at a glance for quick review.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### ⚙️ Settings & Account
+- Change name and profile photo anytime.
+- Enable/disable App Lock PIN.
+- Send feedback to the developer.
+- Logout and account deletion options.
 
-### Android
+---
 
-```sh
-# Using npm
-npm run android
+## 🖼️ Screens Overview
 
-# OR using Yarn
-yarn android
-```
+| Screen | What it does |
+|---|---|
+| **Login** | Enter mobile number → get OTP → verify |
+| **Welcome Aboard** | Set your display name |
+| **Home** | Net balance, searchable customer list, sync status, add customer (FAB) |
+| **Add Customer** | Name (required), phone & address (optional) |
+| **Customer Ledger** | Net balance, full transaction timeline with notes, Got/Gave Money buttons, delete customer |
+| **Money Received / Gave Money** | Enter amount + optional note for the transaction |
+| **App Lock** | 4-digit PIN screen guarding the app |
+| **Settings** | Profile, security, feedback, logout, delete account |
 
-### iOS
+---
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## 🎨 Highlights
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+- **Replaces paper khata books** — everything your notebook did, minus the risk of losing it.
+- **Colour-coded balances** — red for dues, green for advances, so nothing slips through the cracks.
+- **Cloud-based storage** — your ledger survives lost, damaged, or changed devices.
+- **Notes on transactions** — context for every entry, exactly when you need it.
+- **Lightweight & fast** — record a transaction in seconds.
 
-```sh
-bundle install
-```
+---
 
-Then, and every time you update your native dependencies, run:
+## 🚀 Getting Started
 
-```sh
-bundle exec pod install
-```
+1. Install the app and sign in with your mobile number.
+2. Verify the OTP sent to your phone.
+3. Enter your name (or skip).
+4. Tap **+** to add your first customer.
+5. Use **Got Money** / **Gave Money** to record transactions — and your digital khata is live!
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+> **Tip:** Turn on **App Lock PIN** from Settings → Security & Privacy to keep your ledger private.
 
-```sh
-# Using npm
-npm run ios
+---
 
-# OR using Yarn
-yarn ios
-```
+## 🛠️ Tech Stack
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+- **Platform:** Android
+- **Backend:** Cloud-based storage with real-time sync
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+---
 
-## Step 3: Modify your app
+## 🤝 Contributing
 
-Now that you have successfully run the app, let's make changes!
+Contributions, issues, and feature requests are welcome! Feel free to open an issue or submit a pull request.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+---
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## 📬 Contact
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+Have suggestions or found a bug? Use **Send Feedback** in the app's Settings, or reach out via the repository's issue tracker.
 
-## Congratulations! :tada:
+---
 
-You've successfully run and modified your React Native App. :partying_face:
+## Screenshots
+| Login Screen | Home Screen | Add Customer |
+| --- | --- | --- |
+| ![](./Sceenshots/1.jpeg) | ![](./Sceenshots/3.jpeg) | ![](./Sceenshots/5.jpeg) |
 
-### Now what?
+| Customer Account | Add Transaction | Extra Options |
+| --- | --- | --- |
+| ![](./Sceenshots/7.jpeg) | ![](./Sceenshots/4.jpeg) | ![](./Sceenshots/8.jpeg) |
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+| After Customer Added | App Lock |
+| --- | --- |
+| ![](./Sceenshots/6.jpeg) |  ![](./Sceenshots/9.jpeg) |
 
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
